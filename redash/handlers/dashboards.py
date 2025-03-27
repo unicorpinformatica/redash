@@ -10,6 +10,7 @@ from redash.handlers.base import (
     filter_by_tags,
     order_results as _order_results,
 )
+from redash.models.parameterized_query import dropdown_values_live
 from redash.permissions import (
     can_modify,
     require_admin_or_owner,
@@ -22,6 +23,8 @@ from redash.serializers import (
     public_dashboard,
 )
 from sqlalchemy.orm.exc import StaleDataError
+
+from redash.utils import json_loads
 
 
 # Ordering map for relationships
@@ -316,7 +319,42 @@ class PublicDashboardResource(BaseResource):
         else:
             dashboard = self.current_user.object
 
-        return public_dashboard(dashboard)
+        def find_unilims_parameters(result):
+            parameters_refs = []
+            
+            # Percorre todos os widgets
+            for widget in result.get('widgets', []):                                
+                # Acessa os parameters dentro de visualization->query->options->parameters
+                visualization = widget.get('visualization', {})
+                query = visualization.get('query', {})
+                query_options = query.get('options', {})
+                parameters = query_options.get('parameters', [])
+                
+                # Verifica cada parâmetro
+                for param in parameters:
+                    if param.get('unilims_set_context') is True:
+                        parameters_refs.append(param)  # Guarda a referência do parâmetro
+                        
+            return parameters_refs
+      
+        result = public_dashboard(dashboard)        
+
+        # Como os dropdowns com contexto mudam dinamicamente, não podemos usar o cache.
+        # Então, vamos atualizar os valores aqui, selecionando o primeiro valor do dropdown com o contexto correto.
+        if "unilims-userparams" in request.cookies:            
+            unilims_context = {
+                "unilims_context": json_loads(request.cookies["unilims-userparams"])
+            }
+
+            unilims_params = find_unilims_parameters(result)     
+
+            # Para atualizar os valores:
+            for param in unilims_params:
+                dropdown_values = dropdown_values_live(param['queryId'], self.current_org, unilims_context)
+                if len(dropdown_values) > 0:
+                    param['value'] = dropdown_values[0]['value']
+
+        return result
 
 
 class DashboardShareResource(BaseResource):
