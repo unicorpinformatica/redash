@@ -34,6 +34,8 @@ const isDevelopment = !isProduction;
 const isHotReloadingEnabled =
   isDevelopment && process.env.HOT_RELOAD === "true";
 
+console.log("isHotReloadingEnabled", isHotReloadingEnabled);
+
 const redashBackend = process.env.REDASH_BACKEND || "http://localhost:5000";
 const baseHref = CONFIG.baseHref || "/";
 const staticPath = CONFIG.staticPath || "/static/";

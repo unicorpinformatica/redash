@@ -27,3 +27,8 @@ npm-debug.log
 
 client/cypress/screenshots
 client/cypress/videos
+
+.cursorrules
+.repomix-output.txt
+repomix-output.xml
+

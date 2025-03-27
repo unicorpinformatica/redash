@@ -7,6 +7,7 @@ class QueryBasedDropdownParameter extends Parameter {
     super(parameter, parentQueryId);
     this.queryId = parameter.queryId;
     this.multiValuesOptions = parameter.multiValuesOptions;
+    this.unilims_set_context = parameter.unilims_set_context;
     this.setValue(parameter.value);
   }
 

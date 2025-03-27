@@ -197,7 +197,7 @@ function EditParameterSettingsDialog(props) {
               type="select"
             />
           </Form.Item>
-        )}
+        )}      
         {(param.type === "enum" || param.type === "query") && (
           <Form.Item className="m-b-0" label=" " colon={false} {...formItemProps}>
             <Checkbox
@@ -249,6 +249,21 @@ function EditParameterSettingsDialog(props) {
             </Select>
           </Form.Item>
         )}
+        {param.type === "query" && (
+          <Form.Item className="m-b-0" label=" " {...formItemProps}>
+            <Checkbox
+              defaultChecked={!!param.unilims_set_context}
+              onChange={e => 
+                setParam({
+                  ...param,
+                  unilims_set_context: e.target.checked                  
+                })
+              }
+             >
+              UNILIMS Context
+            </Checkbox>
+          </Form.Item>
+        )}          
       </Form>
     </Modal>
   );

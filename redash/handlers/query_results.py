@@ -21,6 +21,7 @@ from redash.tasks.queries import enqueue_query
 from redash.utils import (
     collect_parameters_from_request,
     json_dumps,
+    json_loads,
     utcnow,
     to_filename,
 )
@@ -29,6 +30,7 @@ from redash.models.parameterized_query import (
     InvalidParameterError,
     QueryDetachedFromDataSourceError,
     dropdown_values,
+    dropdown_values_live,
 )
 from redash.serializers import (
     serialize_query_result,
@@ -61,7 +63,7 @@ error_messages = {
 
 
 def run_query(
-    query, parameters, data_source, query_id, should_apply_auto_limit, max_age=0
+    query, parameters, data_source, query_id, should_apply_auto_limit, max_age=0, unilims_context=None
 ):
     if data_source.paused:
         if data_source.pause_reason:
@@ -74,7 +76,7 @@ def run_query(
         return error_response(message)
 
     try:
-        query.apply(parameters)
+        query.apply(parameters, unilims_context=unilims_context)
     except (InvalidParameterError, QueryDetachedFromDataSourceError) as e:
         abort(400, message=str(e))
 
@@ -239,7 +241,16 @@ class QueryDropdownsResource(BaseResource):
             )
             require_access(dropdown_query.data_source, current_user, view_only)
 
-        return dropdown_values(dropdown_query_id, self.current_org)
+        query_parameter = next((p for p in query.parameters if p["type"] == "query" and p["queryId"] == int(dropdown_query_id)), None)
+
+        if "unilims_set_context" in query_parameter and query_parameter["unilims_set_context"] and "unilims-userparams" in request.cookies:            
+            unilims_context = {
+                "unilims_context": json_loads(request.cookies["unilims-userparams"])
+            }
+            return dropdown_values_live(dropdown_query_id, self.current_org, unilims_context)
+            
+        else:
+            return dropdown_values(dropdown_query_id, self.current_org)        
 
 
 class QueryResultResource(BaseResource):
@@ -309,6 +320,7 @@ class QueryResultResource(BaseResource):
                 query_id,
                 should_apply_auto_limit,
                 max_age,
+                unilims_context = {"unilims_context": json_loads(request.cookies.get("unilims-userparams"))} if "unilims-userparams" in request.cookies else None
             )
         else:
             if not query.parameterized.is_safe:

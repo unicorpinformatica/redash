@@ -1,0 +1,42 @@
+{
+  "output": {
+    "filePath": "repomix-output.xml",
+    "style": "xml", 
+    "parsableStyle": false,
+    "fileSummary": true,
+    "directoryStructure": true,
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "compress": false,
+    "topFilesLength": 5,
+    "showLineNumbers": false,
+    "copyToClipboard": false,
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 100
+    }
+  },
+  "include": [
+    "client/**/*.js",
+    "client/**/*.jsx",
+    "client/**/*.ts",
+    "client/**/*.tsx",
+    "client/**/*.html",
+    "client/**/*.css",
+    "redash/**/*.py",
+    "package.json",
+    "README.md",
+    "webpack.config.js"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": []
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

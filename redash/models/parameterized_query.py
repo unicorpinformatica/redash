@@ -28,14 +28,30 @@ def _load_result(query_id, org):
     else:
         raise QueryDetachedFromDataSourceError(query_id)
 
+def _load_result_live(query_id, org, unilims_context):
+    from redash import models
 
+    query = models.Query.get_by_id_and_org(query_id, org)
+
+    if query.data_source:
+        query_runner = query.data_source.query_runner
+        results, error = query_runner.run_query(query.query_text, unilims_context)
+        return json_loads(results)
+    else:
+        raise QueryDetachedFromDataSourceError(query_id)
+    
 def dropdown_values(query_id, org):
     data = _load_result(query_id, org)
     first_column = data["columns"][0]["name"]
     pluck = partial(_pluck_name_and_value, first_column)
     return list(map(pluck, data["rows"]))
 
-
+def dropdown_values_live(query_id, org, unilims_context):
+    data = _load_result_live(query_id, org, unilims_context)
+    first_column = data["columns"][0]["name"]
+    pluck = partial(_pluck_name_and_value, first_column)
+    return list(map(pluck, data["rows"]))
+    
 def join_parameter_list_values(parameters, schema):
     updated_parameters = {}
     for (key, value) in parameters.items():
@@ -125,9 +141,9 @@ class ParameterizedQuery(object):
         self.query = template
         self.parameters = {}
 
-    def apply(self, parameters):
+    def apply(self, parameters, unilims_context=None):
         invalid_parameter_names = [
-            key for (key, value) in parameters.items() if not self._valid(key, value)
+            key for (key, value) in parameters.items() if not self._valid(key, value, unilims_context)
         ]
         if invalid_parameter_names:
             raise InvalidParameterError(invalid_parameter_names)
@@ -139,7 +155,7 @@ class ParameterizedQuery(object):
 
         return self
 
-    def _valid(self, name, value):
+    def _valid(self, name, value, unilims_context=None):
         if not self.schema:
             return True
 
@@ -153,6 +169,7 @@ class ParameterizedQuery(object):
 
         enum_options = definition.get("enumOptions")
         query_id = definition.get("queryId")
+        unilims_set_context = definition.get("unilims_set_context", False)
         allow_multiple_values = isinstance(definition.get("multiValuesOptions"), dict)
 
         if isinstance(enum_options, str):
@@ -163,12 +180,7 @@ class ParameterizedQuery(object):
             "number": _is_number,
             "enum": lambda value: _is_value_within_options(
                 value, enum_options, allow_multiple_values
-            ),
-            "query": lambda value: _is_value_within_options(
-                value,
-                [v["value"] for v in dropdown_values(query_id, self.org)],
-                allow_multiple_values,
-            ),
+            ),            
             "date": _is_date,
             "datetime-local": _is_date,
             "datetime-with-seconds": _is_date,
@@ -176,6 +188,19 @@ class ParameterizedQuery(object):
             "datetime-range": _is_date_range,
             "datetime-range-with-seconds": _is_date_range,
         }
+
+        if unilims_set_context and unilims_context:
+            validators["query"] = lambda value: _is_value_within_options(
+                value,
+                [v["value"] for v in dropdown_values_live(query_id, self.org, unilims_context)],
+                allow_multiple_values,
+            )
+        else:
+            validators["query"] = lambda value: _is_value_within_options(
+                value,
+                [v["value"] for v in dropdown_values(query_id, self.org)]   ,
+                allow_multiple_values,
+            )
 
         validate = validators.get(definition["type"], lambda x: False)
 
