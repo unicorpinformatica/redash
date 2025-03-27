@@ -13,7 +13,7 @@ import Filters from "@/components/Filters";
 import { Dashboard } from "@/services/dashboard";
 import routes from "@/services/routes";
 
-import logoUrl from "@/assets/images/redash_icon_small.png";
+import logoUrl from "@/assets/images/unicorp_logo_small.svg";
 
 import useDashboard from "./hooks/useDashboard";
 
@@ -94,7 +94,7 @@ class PublicDashboardPage extends React.Component {
               <img alt="Redash Logo" src={logoUrl} width="38" />
             </Link>
           </div>
-          Powered by <Link href="https://redash.io/?ref=public-dashboard">Redash</Link>
+          Powered by <Link href="https://www.unicorp.com.br">UniDash</Link>
         </div>
       </div>
     );

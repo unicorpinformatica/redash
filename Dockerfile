@@ -85,18 +85,50 @@ ENV PIP_NO_CACHE_DIR=1
 RUN pip install pip==20.2.4;
 
 # We first copy only the requirements file, to avoid rebuilding on every file change.
-COPY requirements_all_ds.txt ./
-RUN if [ "x$skip_ds_deps" = "x" ] ; then pip install -r requirements_all_ds.txt ; else echo "Skipping pip install -r requirements_all_ds.txt" ; fi
+# COPY requirements_all_ds.txt ./
+# RUN if [ "x$skip_ds_deps" = "x" ] ; then pip install -r requirements_all_ds.txt ; else echo "Skipping pip install -r requirements_all_ds.txt" ; fi
 
-COPY requirements_bundles.txt requirements_dev.txt ./
-RUN if [ "x$skip_dev_deps" = "x" ] ; then pip install -r requirements_dev.txt ; fi
+# COPY requirements_bundles.txt requirements_dev.txt ./
+# RUN if [ "x$skip_dev_deps" = "x" ] ; then pip install -r requirements_dev.txt ; fi
 
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+# COPY requirements.txt ./
+# RUN pip install -r requirements.txt
 
 COPY . /app
 COPY --from=frontend-builder /frontend/client/dist /app/client/dist
 RUN chown -R redash /app
+
+# Adiciona o Oracle Instant Client
+RUN apt-get update && apt-get install -y libaio1 wget unzip
+RUN mkdir /opt/oracle
+WORKDIR /opt/oracle
+RUN wget https://download.oracle.com/otn_software/linux/instantclient/19600/instantclient-basic-linux.x64-19.6.0.0.0dbru.zip \
+    && unzip instantclient-basic-linux.x64-19.6.0.0.0dbru.zip \
+    && rm -f instantclient-basic-linux.x64-19.6.0.0.0dbru.zip 
+
+RUN wget https://download.oracle.com/otn_software/linux/instantclient/19600/\instantclient-sdk-linux.x64-19.6.0.0.0dbru.zip \
+    && unzip \instantclient-sdk-linux.x64-19.6.0.0.0dbru.zip \
+    && rm -f \instantclient-sdk-linux.x64-19.6.0.0.0dbru.zip 
+
+WORKDIR /opt/oracle/instantclient_19_6
+RUN rm -f *jdbc* *occi* *mysql* *README *jar uidrvci genezi adrci 
+RUN echo /opt/oracle/instantclient_19_6 > /etc/ld.so.conf.d/oracle-instantclient.conf \
+    && ldconfig
+
+# Adiciona a variável de ambiente REDASH para adicionar o Oracle Query Runner
+
+ENV ORACLE_HOME=/opt/oracle/instantclient_19_6
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/oracle/instantclient_19_6
+
+# Add REDASH ENV to add Oracle Query Runner
+ENV REDASH_ADDITIONAL_QUERY_RUNNERS=redash.query_runner.oracle
+# End add Oracle Instant Client
+
+WORKDIR /app
+
+COPY requirements_hotfix.txt ./
+RUN pip install -r requirements_hotfix.txt
+
 USER redash
 
 ENTRYPOINT ["/app/bin/docker-entrypoint"]
