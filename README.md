@@ -94,6 +94,10 @@ Redash supports more than 35 SQL and NoSQL [data sources](https://redash.io/help
 
 Please email security@redash.io to report any security vulnerabilities. We will acknowledge receipt of your vulnerability and strive to send you regular updates about our progress. If you're curious about the status of your disclosure please feel free to email us again. If you want to encrypt your disclosure email, you can use [this PGP key](https://keybase.io/arikfr/key.asc).
 
+## How to start a Docker with server in development mode
+
+docker-compose run --rm --service-ports server dev_server
+
 ## License
 
 BSD-2-Clause.

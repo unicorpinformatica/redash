@@ -59,8 +59,7 @@ class Oracle(BaseSQLQueryRunner):
                 "host": {"type": "string"},
                 "port": {"type": "number"},
                 "servicename": {"type": "string", "title": "DSN Service Name"},
-                "encoding": {"type": "string"},                
-                "unilims_set_context": {"type": "string", "default": "", "title": "Contexto UNILIMS"}                
+                "encoding": {"type": "string"}
             },
             "required": ["servicename", "user", "password", "host", "port"],
             "extra_options": ["encoding"],
@@ -141,24 +140,25 @@ class Oracle(BaseSQLQueryRunner):
             dsn=dsn,
         )
         connection.outputtypehandler = Oracle.output_handler
+        
+        context_stmt = """BEGIN UNILIMS_SECURITY_CONTEXT.AJUSTACONTEXTO(AREGISTRO => {REGISTRO}, PCODORGANOG => {CODORGANOG}); END;"""
+        if isinstance(user, dict) and "unilims_context" in user:                
+            context_stmt = context_stmt.upper().format(**user["unilims_context"]);
+            logger.info("Contexto UNILIMS será ajustado para: {}".format(user["unilims_context"]))
+        else:
+            context_stmt = context_stmt.upper().format(**{
+                "REGISTRO": "null",
+                "CODORGANOG": "null"
+            });
 
-        if self.configuration.get("unilims_set_context"):
-            context_stmt = self.configuration.get("unilims_set_context");
-            if isinstance(user, dict) and "unilims_context" in user:                
-                context_stmt = context_stmt.upper().format(**user["unilims_context"]);
-            else:
-                context_stmt = context_stmt.upper().format(**{
-                    "REGISTRO": "null",
-                    "CODORGANOG": "null"
-                });
-
-            cursor = connection.cursor()
-            try:
-                cursor.execute(context_stmt);
-            except cx_Oracle.DatabaseError as err:
-                error = "Falha ao configurar o contexto UNILIMS. {}.".format(str(err))
-            finally:
-                cursor.close()
+        cursor = connection.cursor()
+        try:
+            cursor.execute(context_stmt);
+        except cx_Oracle.DatabaseError as err:
+            error = "Falha ao configurar o contexto UNILIMS. {}.".format(str(err))
+            logger.error(error)
+        finally:
+            cursor.close()
 
         cursor = connection.cursor()
 

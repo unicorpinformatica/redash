@@ -29,8 +29,7 @@ from redash.models.parameterized_query import (
     ParameterizedQuery,
     InvalidParameterError,
     QueryDetachedFromDataSourceError,
-    dropdown_values,
-    dropdown_values_live,
+    dropdown_values
 )
 from redash.serializers import (
     serialize_query_result,
@@ -243,14 +242,14 @@ class QueryDropdownsResource(BaseResource):
 
         query_parameter = next((p for p in query.parameters if p["type"] == "query" and p["queryId"] == int(dropdown_query_id)), None)
 
-        if "unilims_set_context" in query_parameter and query_parameter["unilims_set_context"] and "unilims-userparams" in request.cookies:            
+        unilims_context = None
+        if query_parameter != None and "unilims-userparams" in request.cookies:
+            # Verificando se o texto da query
             unilims_context = {
                 "unilims_context": json_loads(request.cookies["unilims-userparams"])
-            }
-            return dropdown_values_live(dropdown_query_id, self.current_org, unilims_context)
+            }        
             
-        else:
-            return dropdown_values(dropdown_query_id, self.current_org)        
+        return dropdown_values(dropdown_query_id, self.current_org, unilims_context)        
 
 
 class QueryResultResource(BaseResource):

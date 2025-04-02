@@ -1,11 +1,14 @@
+import logging
 import pystache
 from functools import partial
 from numbers import Number
+from redash import models
 from redash.utils import mustache_render, json_loads
 from redash.permissions import require_access, view_only
 from funcy import distinct
 from dateutil.parser import parse
 
+logger = logging.getLogger(__name__)
 
 def _pluck_name_and_value(default_column, row):
     row = {k.lower(): v for k, v in row.items()}
@@ -40,11 +43,23 @@ def _load_result_live(query_id, org, unilims_context):
     else:
         raise QueryDetachedFromDataSourceError(query_id)
     
-def dropdown_values(query_id, org):
-    data = _load_result(query_id, org)
+def dropdown_values(query_id, org, unilims_context=None):
+    if unilims_context and dropdown_needs_context(query_id, org):
+        data = _load_result_live(query_id, org, unilims_context)
+    else:
+        data = _load_result(query_id, org)
     first_column = data["columns"][0]["name"]
     pluck = partial(_pluck_name_and_value, first_column)
     return list(map(pluck, data["rows"]))
+
+def dropdown_needs_context(query_id, org):
+    dropdown_query = models.Query.get_by_id_and_org(query_id, org)
+        
+    if "sys_context" in dropdown_query.query_text.lower() or "unilims_security_context.getsessionenv" in dropdown_query.query_text.lower():
+        logger.info("Dropdown {} query needs UNILIMS context".format(dropdown_query.id))
+        return True
+    else:        
+        return False
 
 def dropdown_values_live(query_id, org, unilims_context):
     data = _load_result_live(query_id, org, unilims_context)
@@ -169,7 +184,6 @@ class ParameterizedQuery(object):
 
         enum_options = definition.get("enumOptions")
         query_id = definition.get("queryId")
-        unilims_set_context = definition.get("unilims_set_context", False)
         allow_multiple_values = isinstance(definition.get("multiValuesOptions"), dict)
 
         if isinstance(enum_options, str):
@@ -187,20 +201,12 @@ class ParameterizedQuery(object):
             "date-range": _is_date_range,
             "datetime-range": _is_date_range,
             "datetime-range-with-seconds": _is_date_range,
+            "query": lambda value: _is_value_within_options(
+                value,
+                [v["value"] for v in dropdown_values(query_id, self.org, unilims_context)],
+                allow_multiple_values,
+            )
         }
-
-        if unilims_set_context and unilims_context:
-            validators["query"] = lambda value: _is_value_within_options(
-                value,
-                [v["value"] for v in dropdown_values_live(query_id, self.org, unilims_context)],
-                allow_multiple_values,
-            )
-        else:
-            validators["query"] = lambda value: _is_value_within_options(
-                value,
-                [v["value"] for v in dropdown_values(query_id, self.org)]   ,
-                allow_multiple_values,
-            )
 
         validate = validators.get(definition["type"], lambda x: False)
 

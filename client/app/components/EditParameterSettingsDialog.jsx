@@ -248,22 +248,7 @@ function EditParameterSettingsDialog(props) {
               </Option>
             </Select>
           </Form.Item>
-        )}
-        {param.type === "query" && (
-          <Form.Item className="m-b-0" label=" " {...formItemProps}>
-            <Checkbox
-              defaultChecked={!!param.unilims_set_context}
-              onChange={e => 
-                setParam({
-                  ...param,
-                  unilims_set_context: e.target.checked                  
-                })
-              }
-             >
-              UNILIMS Context
-            </Checkbox>
-          </Form.Item>
-        )}          
+        )}         
       </Form>
     </Modal>
   );

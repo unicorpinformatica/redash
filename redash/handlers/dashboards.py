@@ -10,7 +10,7 @@ from redash.handlers.base import (
     filter_by_tags,
     order_results as _order_results,
 )
-from redash.models.parameterized_query import dropdown_values_live
+from redash.models.parameterized_query import dropdown_needs_context, dropdown_values_live
 from redash.permissions import (
     can_modify,
     require_admin_or_owner,
@@ -319,7 +319,7 @@ class PublicDashboardResource(BaseResource):
         else:
             dashboard = self.current_user.object
 
-        def find_unilims_parameters(result):
+        def find_dropdown_parameters(result):
             parameters_refs = []
             
             # Percorre todos os widgets
@@ -332,7 +332,7 @@ class PublicDashboardResource(BaseResource):
                 
                 # Verifica cada parâmetro
                 for param in parameters:
-                    if param.get('unilims_set_context') is True:
+                    if param.get('type') == 'query':
                         parameters_refs.append(param)  # Guarda a referência do parâmetro
                         
             return parameters_refs
@@ -346,13 +346,20 @@ class PublicDashboardResource(BaseResource):
                 "unilims_context": json_loads(request.cookies["unilims-userparams"])
             }
 
-            unilims_params = find_unilims_parameters(result)     
+            dropdown_params = find_dropdown_parameters(result)
 
-            # Para atualizar os valores:
-            for param in unilims_params:
-                dropdown_values = dropdown_values_live(param['queryId'], self.current_org, unilims_context)
-                if len(dropdown_values) > 0:
-                    param['value'] = dropdown_values[0]['value']
+            dropdown_params_by_query_id = {}
+            for param in dropdown_params:
+                if param['queryId'] not in dropdown_params_by_query_id:
+                    dropdown_params_by_query_id[param['queryId']] = []
+                dropdown_params_by_query_id[param['queryId']].append(param)
+
+            for query_id, params in dropdown_params_by_query_id.items():
+                if dropdown_needs_context(query_id, self.current_org):
+                    dropdown_values = dropdown_values_live(query_id, self.current_org, unilims_context)
+                    if len(dropdown_values) > 0:
+                        for param in params:
+                            param['value'] = dropdown_values[0]['value']
 
         return result
 

@@ -32,3 +32,4 @@ client/cypress/videos
 .repomix-output.txt
 repomix-output.xml
 
+publicDashboardout.json
