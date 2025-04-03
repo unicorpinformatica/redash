@@ -382,16 +382,16 @@ class QueryResultResource(BaseResource):
 
             if (
                 query is not None
-                and query_result is not None
+                and query_result is None
                 and self.current_user.is_api_user()
             ):
                 if query.query_hash != query_result.query_hash:
                     abort(404, message="No cached result found for this query.")
 
         if query_result:
-            require_access(query_result.data_source, self.current_user, view_only)
-
-            if isinstance(self.current_user, models.ApiUser):
+            if not isinstance(self.current_user, models.ApiUser):
+                require_access(query_result.data_source, self.current_user, view_only)
+            else:
                 event = {
                     "user_id": None,
                     "org_id": self.current_org.id,

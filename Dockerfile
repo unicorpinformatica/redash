@@ -1,3 +1,14 @@
+FROM alpine:3.18 as frontend-version-fixed
+
+WORKDIR /frontend
+
+RUN apk add --no-cache jq
+
+COPY package.json package-lock.json ./
+
+RUN jq '.version = "10.1.0"' package.json > package.json.tmp && mv package.json.tmp package.json
+RUN jq '.version = "10.1.0"' package-lock.json > package-lock.json.tmp && mv package-lock.json.tmp package-lock.json
+
 FROM node:12 as frontend-builder
 
 # Controls whether to build the frontend assets
@@ -10,7 +21,7 @@ RUN useradd -m -d /frontend redash
 USER redash
 
 WORKDIR /frontend
-COPY --chown=redash package.json package-lock.json /frontend/
+COPY --from=frontend-version-fixed --chown=redash /frontend/package.json  /frontend/package-lock.json /frontend/
 COPY --chown=redash viz-lib /frontend/viz-lib
 
 # Controls whether to instrument code for coverage information
@@ -19,6 +30,7 @@ ENV BABEL_ENV=${code_coverage:+test}
 
 RUN if [ "x$skip_frontend_build" = "x" ] ; then npm ci --unsafe-perm; fi
 
+COPY --chown=redash package.json package-lock.json /frontend/
 COPY --chown=redash client /frontend/client
 COPY --chown=redash webpack.config.js /frontend/
 RUN if [ "x$skip_frontend_build" = "x" ] ; then npm run build; else mkdir -p /frontend/client/dist && touch /frontend/client/dist/multi_org.html && touch /frontend/client/dist/index.html; fi
@@ -94,29 +106,24 @@ RUN pip install pip==20.2.4;
 # COPY requirements.txt ./
 # RUN pip install -r requirements.txt
 
-COPY . /app
-COPY --from=frontend-builder /frontend/client/dist /app/client/dist
-RUN chown -R redash /app
-
 # Adiciona o Oracle Instant Client
 RUN apt-get update && apt-get install -y libaio1 wget unzip
 RUN mkdir /opt/oracle
 WORKDIR /opt/oracle
 RUN wget https://download.oracle.com/otn_software/linux/instantclient/19600/instantclient-basic-linux.x64-19.6.0.0.0dbru.zip \
-    && unzip instantclient-basic-linux.x64-19.6.0.0.0dbru.zip \
-    && rm -f instantclient-basic-linux.x64-19.6.0.0.0dbru.zip 
+&& unzip instantclient-basic-linux.x64-19.6.0.0.0dbru.zip \
+&& rm -f instantclient-basic-linux.x64-19.6.0.0.0dbru.zip 
 
 RUN wget https://download.oracle.com/otn_software/linux/instantclient/19600/\instantclient-sdk-linux.x64-19.6.0.0.0dbru.zip \
-    && unzip \instantclient-sdk-linux.x64-19.6.0.0.0dbru.zip \
-    && rm -f \instantclient-sdk-linux.x64-19.6.0.0.0dbru.zip 
+&& unzip \instantclient-sdk-linux.x64-19.6.0.0.0dbru.zip \
+&& rm -f \instantclient-sdk-linux.x64-19.6.0.0.0dbru.zip 
 
 WORKDIR /opt/oracle/instantclient_19_6
 RUN rm -f *jdbc* *occi* *mysql* *README *jar uidrvci genezi adrci 
 RUN echo /opt/oracle/instantclient_19_6 > /etc/ld.so.conf.d/oracle-instantclient.conf \
-    && ldconfig
+&& ldconfig
 
 # Adiciona a variável de ambiente REDASH para adicionar o Oracle Query Runner
-
 ENV ORACLE_HOME=/opt/oracle/instantclient_19_6
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/oracle/instantclient_19_6
 
@@ -124,10 +131,17 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/oracle/instantclient_19_6
 ENV REDASH_ADDITIONAL_QUERY_RUNNERS=redash.query_runner.oracle
 # End add Oracle Instant Client
 
-WORKDIR /app
-
 COPY requirements_hotfix.txt ./
 RUN pip install -r requirements_hotfix.txt
+
+WORKDIR /app
+COPY . /app
+COPY --from=frontend-builder /frontend/client/dist /app/client/dist
+RUN chown -R redash /app
+
+
+
+WORKDIR /app
 
 USER redash
 

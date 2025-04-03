@@ -19,6 +19,7 @@ import PlainButton from "@/components/PlainButton";
 import ExpandedWidgetDialog from "@/components/dashboards/ExpandedWidgetDialog";
 import EditParameterMappingsDialog from "@/components/dashboards/EditParameterMappingsDialog";
 import VisualizationRenderer from "@/components/visualizations/VisualizationRenderer";
+import { Auth } from "@/services/auth";
 
 import Widget from "./Widget";
 
@@ -27,8 +28,8 @@ function visualizationWidgetMenuOptions({ widget, canEditDashboard, onParameters
   const canEditParameters = canEditDashboard && !isEmpty(invoke(widget, "query.getParametersDefs"));
   const widgetQueryResult = widget.getQueryResult();
   const isQueryResultEmpty = !widgetQueryResult || !widgetQueryResult.isEmpty || widgetQueryResult.isEmpty();
-
-  const downloadLink = fileType => widgetQueryResult.getLink(widget.getQuery().id, fileType);
+  const apiKey = Auth.getApiKey();
+  const downloadLink = fileType => widgetQueryResult.getLink(widget.getQuery().id, fileType, apiKey);
   const downloadName = fileType => widgetQueryResult.getName(widget.getQuery().name, fileType);
   return compact([
     <Menu.Item key="download_csv" disabled={isQueryResultEmpty}>

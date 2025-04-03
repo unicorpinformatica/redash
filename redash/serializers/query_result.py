@@ -73,7 +73,7 @@ def _get_column_lists(columns):
 
 def serialize_query_result(query_result, is_api_user):
     if is_api_user:
-        publicly_needed_keys = ["data", "retrieved_at"]
+        publicly_needed_keys = ["data", "retrieved_at", "id"]
         return project(query_result.to_dict(), publicly_needed_keys)
     else:
         return query_result.to_dict()
