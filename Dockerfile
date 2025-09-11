@@ -44,10 +44,17 @@ ARG skip_ds_deps
 # Controls whether to install dev dependencies.
 ARG skip_dev_deps
 
+# apontar para o archive
+RUN printf "deb http://archive.debian.org/debian buster main contrib non-free\n" > /etc/apt/sources.list \
+ && printf "deb http://archive.debian.org/debian-security buster/updates main contrib non-free\n" >> /etc/apt/sources.list \
+ # índices antigos exigem ignorar 'Valid-Until'
+ && apt-get -o Acquire::Check-Valid-Until=false update \
+ && apt-get install -y --no-install-recommends python3 python3-pip python3-dev
+
 RUN useradd --create-home redash
 
-# Ubuntu packages
-RUN apt-get update && \
+# Debian packages
+RUN apt-get -o Acquire::Check-Valid-Until=false update && \
   apt-get install -y \
     curl \
     gnupg \
@@ -73,7 +80,7 @@ RUN apt-get update && \
   # MSSQL ODBC Driver:  
   curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
   curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
-  apt-get update && \
+  apt-get -o Acquire::Check-Valid-Until=false update && \
   ACCEPT_EULA=Y apt-get install -y msodbcsql17 && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
@@ -107,7 +114,7 @@ RUN pip install pip==20.2.4;
 # RUN pip install -r requirements.txt
 
 # Adiciona o Oracle Instant Client
-RUN apt-get update && apt-get install -y libaio1 wget unzip
+RUN apt-get -o Acquire::Check-Valid-Until=false update && apt-get install -y libaio1 wget unzip
 RUN mkdir /opt/oracle
 WORKDIR /opt/oracle
 RUN wget https://download.oracle.com/otn_software/linux/instantclient/19600/instantclient-basic-linux.x64-19.6.0.0.0dbru.zip \
