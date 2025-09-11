@@ -139,7 +139,7 @@ ENV REDASH_ADDITIONAL_QUERY_RUNNERS=redash.query_runner.oracle
 # End add Oracle Instant Client
 
 COPY requirements_hotfix.txt ./
-RUN pip install -r requirements_hotfix.txt
+RUN pip install --timeout=600 --retries=10 -r requirements_hotfix.txt
 
 WORKDIR /app
 COPY . /app
